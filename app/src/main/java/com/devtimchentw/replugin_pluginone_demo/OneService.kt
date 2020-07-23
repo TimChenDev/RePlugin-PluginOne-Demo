@@ -6,6 +6,8 @@ import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import com.devtimchentw.remote.OneListener
+import com.devtimchentw.remote.TwoListener
+import com.devtimchentw.remote.TwoToOne
 import com.qihoo360.replugin.RePlugin
 
 /**
@@ -30,11 +32,23 @@ class OneService : Service() {
             // show Toast
             Toast.makeText(
                 RePlugin.getHostContext(),
-                "updateAppInfo 這裡收到通知囉",
+                "PluginOne 的 updateAppInfo 這裡收到通知囉",
                 Toast.LENGTH_LONG
             ).show()
 
-            // Todo do something...
+            // do something...
+            doSomething()
+
+            // fetchBinder 會去檢查 該插件是否存在, 會做插件安裝的動作, 再去取得 IBinder
+            // 這裡就會把 pluginTwo 給拉起, 並且取得 twoListener 的 instance
+            val binder = RePlugin.fetchBinder("com.devtimchentw.replugin_plugintwo_demo", "ITwo")
+            binder?.run {
+                val twoListener = TwoListener.Stub.asInterface(binder)
+                // 通知 PluginTwo, 並且提供一個 binder(twoToOne) 給
+                twoListener.talkToTwo("Hi PluginTwo, 你可以透過 TwoToOne 回傳訊息給 PluginOne 喔", twoToOne)
+            } ?: run {
+                Log.v("AidlTest", "PluginOne >> OneService >> updateAppInfo() binder is null")
+            }
         }
     }
 
@@ -43,4 +57,23 @@ class OneService : Service() {
         return binder
     }
 
+    val twoToOne : TwoToOne.Stub = object: TwoToOne.Stub() {
+        override fun backFromTwo(message: String?) {
+
+            // 從 Two 回傳給 One 的訊息
+            Log.v("AidlTest", "PluginOne >> OneService >> twoToOne >> backFromTwo()")
+        }
+    }
+
+    // region 做雜事
+
+    private fun doSomething() {
+        Log.v("AidlTest", "PluginOne >> OneService >> doSomething()")
+
+        for (i in 0..999) {
+            Log.v("AidlLogV", "PluginOne >> OneService >> i: $i")
+        }
+    }
+
+    // endregion
 }
